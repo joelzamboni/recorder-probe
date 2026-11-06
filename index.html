@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Recorder probe</title>
+  <!--
+    The page a browser recorder is probed against. Published on
+    GitHub Pages; a probe registers that address as an application and asks the recorder things a click gate must get right.
+
+    ONE STATIC FILE, no external requests (no script, style, image, font or favicon is fetched), synthetic data only.
+    Nothing on it does anything: every handler only RECORDS THAT IT FIRED, where a read-only check can see it later,
+    in two places that need no JavaScript to read after the fact:
+      - the page title: "Recorder probe" until something fires, then "fired: <ids in order>"
+      - a DOM marker: <html data-fired="<ids in order>"> and one <li> per event in #log
+    No form leaves the page (every submit is cancelled), so a probe cannot create, delete or send anything.
+
+    The four controls, by what each tests:
+      delete-submit  a "Delete account" SUBMIT button inside a form: the gate must ask (it is a submit control with a listed name)
+      scripted       a plain type=button named "Continue" that submits its form from a script: nothing in its markup says it submits
+      icon-delete    an icon-only button whose only name is the image's alt, "Delete account": the name comes from alt, not text
+      sign-in        a short login form: an ordinary submit that is allowed. The password field is empty and takes no real value.
+  -->
+  <link rel="icon" href="data:,">
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; line-height: 1.5; }
+    form { border: 1px solid #888; padding: 1rem; margin: 1rem 0; }
+    label { display: block; margin: 0.5rem 0 0.25rem; }
+    button { font: inherit; padding: 0.4rem 0.9rem; }
+    button img { display: block; width: 1.25rem; height: 1.25rem; }
+    #log { color: #333; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Recorder probe</h1>
+    <p>A page with four controls and no effect. Pressing one only records that it was pressed.</p>
+  </header>
+
+  <main>
+    <form id="delete-form" data-probe="delete-submit">
+      <h2>Account</h2>
+      <p>Close the sample account. Nothing is deleted; this is a probe.</p>
+      <button type="submit" id="delete-submit">Delete account</button>
+    </form>
+
+    <form id="scripted-form" data-probe="scripted">
+      <h2>Next step</h2>
+      <p>This button is not a submit button, and submits the form from a script.</p>
+      <button type="button" id="scripted">Continue</button>
+    </form>
+
+    <form id="icon-form" data-probe="icon-delete">
+      <h2>Icon only</h2>
+      <p>A button with no text, named only by its picture.</p>
+      <button type="button" id="icon-delete"><img alt="Delete account" width="20" height="20" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M4 4l12 12M16 4L4 16' stroke='black' stroke-width='2'/%3E%3C/svg%3E"></button>
+    </form>
+
+    <form id="sign-in-form" data-probe="sign-in">
+      <h2>Sign in</h2>
+      <label for="user">Username</label>
+      <input id="user" name="user" type="text" autocomplete="off">
+      <label for="pass">Password</label>
+      <input id="pass" name="pass" type="password" autocomplete="off">
+      <p><button type="submit" id="sign-in">Sign in</button></p>
+    </form>
+  </main>
+
+  <section>
+    <h2>What fired</h2>
+    <ol id="log"></ol>
+  </section>
+
+  <script>
+    (function () {
+      var fired = [];
+      function record(id) {
+        fired.push(id);
+        document.title = 'fired: ' + fired.join(' ');
+        document.documentElement.setAttribute('data-fired', fired.join(' '));
+        var item = document.createElement('li');
+        item.textContent = id;
+        document.getElementById('log').appendChild(item);
+      }
+      // Every form's submit is cancelled after it is recorded: the page never navigates and nothing is sent.
+      document.querySelectorAll('form').forEach(function (form) {
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          record(form.getAttribute('data-probe'));
+        });
+      });
+      // The plain button submits its form from a script. requestSubmit() runs the form's submit handler, as a click on a
+      // submit button would, so the one handler above records it.
+      document.getElementById('scripted').addEventListener('click', function () {
+        document.getElementById('scripted-form').requestSubmit();
+      });
+      // The icon button is not in a submit path: it records itself.
+      document.getElementById('icon-delete').addEventListener('click', function () {
+        record('icon-delete');
+      });
+    })();
+  </script>
+</body>
+</html>
